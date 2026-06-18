@@ -3,4 +3,4 @@ RUN mkdir -p /data
 WORKDIR /app
 COPY target/spring-producer-ui-1.0.0-SNAPSHOT.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx256m", "-Xms64m", "-XX:+UseContainerSupport", "-jar", "app.jar"]

@@ -3,4 +3,4 @@ RUN mkdir -p /data
 WORKDIR /app
 COPY target/spring-order-service-1.0.0-SNAPSHOT.jar app.jar
 EXPOSE 8081
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx256m", "-Xms64m", "-XX:+UseContainerSupport", "-jar", "app.jar"]
