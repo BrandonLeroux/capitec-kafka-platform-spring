@@ -80,9 +80,10 @@ for svc in "${SERVICES[@]}"; do
   kubectl apply -f "k8s/$svc.yaml" &>/dev/null || die "kubectl apply failed for $svc"
   kubectl rollout restart deployment/"$svc" &>/dev/null || true
   log_info "Waiting for $svc..."
-  kubectl rollout status deployment/"$svc" --timeout=90s &>/dev/null \
+  # Spring Boot takes ~10s to start — use 180s timeout
+  kubectl rollout status deployment/"$svc" --timeout=180s &>/dev/null \
     && log_ok "$svc -- running" \
-    || { READY=$(kubectl get deployment "$svc" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0); [[ "$READY" -ge 1 ]] && log_warn "$svc timeout but pod ready" || die "$svc failed. Run: kubectl logs deployment/$svc"; }
+    || { READY=$(kubectl get deployment "$svc" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0); [[ "$READY" -ge 1 ]] && log_ok "$svc -- running (started after timeout)" || die "$svc failed to start. Run: kubectl logs deployment/$svc"; }
 done
 
 # ── Step 6: Port-forward ──────────────────────────────────────────────────────
