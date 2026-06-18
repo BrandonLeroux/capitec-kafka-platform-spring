@@ -110,8 +110,7 @@ log_step "Step 7/7 -- Seeding data"
 if [[ "$SKIP_SEED" == true ]]; then
   log_warn "Skipping seed (--skip-seed)"
 else
-  SEED_DIR="$ORIG_DIR/kafka-producer"
-  [[ -d "$SEED_DIR" ]] || die "Seed scripts not found at $SEED_DIR. Clone capitec-kafka-platform alongside this repo."
+  SEED_DIR="$REPO_DIR/scripts"
   log_info "Seeding 1000 customers..."
   bash "$SEED_DIR/create-customers.sh" 2>&1 | grep -E "Done|failed" || true
   log_ok "Customers seeded"
