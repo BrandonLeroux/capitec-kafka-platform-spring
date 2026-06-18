@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-producer-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spring-producer-ui
+  template:
+    metadata:
+      labels:
+        app: spring-producer-ui
+    spec:
+      containers:
+        - name: spring-producer-ui
+          image: spring-producer-ui:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-producer-ui
+spec:
+  selector:
+    app: spring-producer-ui
+  ports:
+    - port: 8080
+      targetPort: 8080

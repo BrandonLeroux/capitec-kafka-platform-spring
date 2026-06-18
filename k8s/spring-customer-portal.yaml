@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-customer-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spring-customer-portal
+  template:
+    metadata:
+      labels:
+        app: spring-customer-portal
+    spec:
+      containers:
+        - name: spring-customer-portal
+          image: spring-customer-portal:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8082
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-customer-portal
+spec:
+  selector:
+    app: spring-customer-portal
+  ports:
+    - port: 8082
+      targetPort: 8082

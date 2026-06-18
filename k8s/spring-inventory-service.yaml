@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-inventory-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spring-inventory-service
+  template:
+    metadata:
+      labels:
+        app: spring-inventory-service
+    spec:
+      containers:
+        - name: spring-inventory-service
+          image: spring-inventory-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8083
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-inventory-service
+spec:
+  selector:
+    app: spring-inventory-service
+  ports:
+    - port: 8083
+      targetPort: 8083
