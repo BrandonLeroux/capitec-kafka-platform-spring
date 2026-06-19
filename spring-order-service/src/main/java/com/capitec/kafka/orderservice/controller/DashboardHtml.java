@@ -149,9 +149,10 @@ public class DashboardHtml {
     const p=new URLSearchParams({page:orderPage,size:pageSize});
     if(s)p.set('search',s);if(st!=='ALL')p.set('status',st);
     const data=await fetch('/api/orders?'+p).then(r=>r.json());
-    const stats=data.stats||{};const total=data.total||0;
+    const stats=data.stats||{};
+    const grandTotal=Object.values(stats).reduce((a,b)=>a+b,0);
     document.getElementById('order-stats').innerHTML=[
-      ['Total',total],['Confirmed',stats['CONFIRMED']||0],['Payment Init',stats['PAYMENT-INIT']||0],
+      ['Total',grandTotal],['Confirmed',stats['CONFIRMED']||0],['Payment Init',stats['PAYMENT-INIT']||0],
       ['Processed',stats['PAYMENT-PROCESSED']||0],['Packed',stats['PACKED']||0],
       ['Out for Del.',stats['OUT-FOR-DELIVERY']||0],['Delivered',stats['DELIVERED']||0],['Cancelled',stats['CANCELLED']||0]
     ].map(([l,v])=>`<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join('');
