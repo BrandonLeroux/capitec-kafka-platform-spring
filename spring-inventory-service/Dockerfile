@@ -3,4 +3,4 @@ RUN mkdir -p /data
 WORKDIR /app
 COPY target/spring-inventory-service-1.0.0-SNAPSHOT.jar app.jar
 EXPOSE 8083
-ENTRYPOINT ["java", "-Xmx256m", "-Xms64m", "-XX:+UseContainerSupport", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx128m", "-Xms32m", "-XX:+UseContainerSupport", "-jar", "app.jar"]
