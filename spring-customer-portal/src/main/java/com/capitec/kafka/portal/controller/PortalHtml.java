@@ -206,10 +206,10 @@ public class PortalHtml {
     <p class="sub">Sign in with your cell number, email address, or customer number</p>
     <div id="login-alert" class="alert"></div>
     <div class="field"><label>Cell / Email / Customer Number</label>
-      <input id="login-cell" type="text" placeholder="e.g. 0821234567 or jane@email.com or 1000000000" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
+      <input id="login-cell" type="text" placeholder="e.g. 0821234567 or jane@email.com or 1000000000" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
     </div>
     <div class="field"><label>Password</label>
-      <input id="login-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <input id="login-password" type="password" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="btn-primary" onclick="doLogin()">Sign In</button>
     <p class="form-footer">No account? <button class="link-btn" onclick="goToSignup()">Register here</button></p>
@@ -382,7 +382,14 @@ public class PortalHtml {
     showPage('home');loadProfile();loadOrders();
   }
 
-  async function signOut(){await post('/api/logout',{});session=null;cart=[];updateCartBadge();closeCart();document.getElementById('main-nav').style.display='none';showPage('login');}
+  async function signOut(){
+    await post('/api/logout',{});
+    session=null;cart=[];updateCartBadge();closeCart();
+    document.getElementById('main-nav').style.display='none';
+    document.getElementById('login-cell').value='';
+    document.getElementById('login-password').value='';
+    showPage('login');
+  }
 
   function showPage(name){
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
