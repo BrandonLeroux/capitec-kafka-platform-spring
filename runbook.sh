@@ -42,9 +42,8 @@ docker info &>/dev/null && log_ok "Docker running" || die "Docker daemon not run
 
 # ── Step 2: Kafka cluster ─────────────────────────────────────────────────────
 log_step "Step 2/7 -- Deploying Kafka cluster"
-KAFKA_MANIFEST="$ORIG_DIR/k8s/kafka-statefulset.yaml"
-[[ -f "$KAFKA_MANIFEST" ]] || KAFKA_MANIFEST="$REPO_DIR/../capitec-kafka-platform/k8s/kafka-statefulset.yaml"
-[[ -f "$KAFKA_MANIFEST" ]] && kubectl apply -f "$KAFKA_MANIFEST" &>/dev/null || log_warn "kafka-statefulset.yaml not found -- Kafka may already be running"
+KAFKA_MANIFEST="$REPO_DIR/k8s/kafka-statefulset.yaml"
+kubectl apply -f "$KAFKA_MANIFEST" &>/dev/null && log_ok "Kafka StatefulSet applied" || log_warn "kafka-statefulset.yaml apply failed -- Kafka may already be running"
 kubectl apply -f "$REPO_DIR/k8s/kafkaUI.yaml" &>/dev/null && log_ok "Kafka UI deployed (http://localhost:30080)" || log_warn "Kafka UI deploy skipped"
 log_info "Waiting for Kafka brokers (up to 3 minutes)..."
 kubectl rollout status statefulset/kafka --timeout=180s &>/dev/null \
