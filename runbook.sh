@@ -63,7 +63,7 @@ done
 
 # ── Step 4: Build ─────────────────────────────────────────────────────────────
 log_step "Step 4/7 -- Building services"
-SERVICES=("spring-order-service" "spring-customer-portal" "spring-inventory-service" "spring-payment-processor" "spring-producer-ui")
+SERVICES=("spring-order-service" "spring-customer-portal" "spring-inventory-service" "spring-payment-processor")
 for svc in "${SERVICES[@]}"; do
   if [[ "$SKIP_BUILD" == true ]] && docker image inspect "$svc:latest" &>/dev/null; then
     log_ok "$svc -- existing image"
@@ -81,30 +81,48 @@ for svc in "${SERVICES[@]}"; do
   kubectl apply -f "k8s/$svc.yaml" &>/dev/null || die "kubectl apply failed for $svc"
   kubectl rollout restart deployment/"$svc" &>/dev/null || true
   log_info "Waiting for $svc..."
-  # Spring Boot takes ~10s to start — use 180s timeout
+  # Spring Boot takes ~10s to start — use 180s timeout; warn but never fail the script
   kubectl rollout status deployment/"$svc" --timeout=180s &>/dev/null \
     && log_ok "$svc -- running" \
-    || { READY=$(kubectl get deployment "$svc" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0); [[ "$READY" -ge 1 ]] && log_ok "$svc -- running (started after timeout)" || die "$svc failed to start. Run: kubectl logs deployment/$svc"; }
+    || { READY=$(kubectl get deployment "$svc" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0)
+         [[ "$READY" -ge 1 ]] && log_ok "$svc -- running (started after timeout)" || log_warn "$svc not ready yet -- run: kubectl logs deployment/$svc"; }
 done
 
 # ── Step 6: Port-forward ──────────────────────────────────────────────────────
 log_step "Step 6/7 -- Setting up port-forwards"
-for port in 8080 8081 8082 8083; do
+for port in 8081 8082 8083; do
   PIDS=$(lsof -ti tcp:$port 2>/dev/null || true); [[ -n "$PIDS" ]] && kill $PIDS 2>/dev/null && sleep 1 || true
 done
 
-wait_pod() { local label="$1"; for i in $(seq 1 20); do local pod; pod=$(kubectl get pod -l "$label" --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); [[ -n "$pod" ]] && echo "$pod" && return 0; sleep 3; done; die "No running pod: $label"; }
+wait_pod() {
+  local label="$1"
+  for i in $(seq 1 20); do
+    local pod
+    pod=$(kubectl get pod -l "$label" --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    [[ -n "$pod" ]] && echo "$pod" && return 0
+    sleep 3
+  done
+  log_warn "No running pod found for $label -- port-forward skipped"
+  return 1
+}
 
-kubectl port-forward "pod/$(wait_pod app=spring-producer-ui)"         8080:8080 >/tmp/pf-spring-prod.log  2>&1 &
-kubectl port-forward "pod/$(wait_pod app=spring-order-service)"       8081:8081 >/tmp/pf-spring-ord.log   2>&1 &
-kubectl port-forward "pod/$(wait_pod app=spring-customer-portal)"     8082:8082 >/tmp/pf-spring-portal.log 2>&1 &
-kubectl port-forward "pod/$(wait_pod app=spring-inventory-service)"   8083:8083 >/tmp/pf-spring-inv.log   2>&1 &
+pf_pod() {
+  local label="$1" port="$2" logfile="$3"
+  local pod
+  pod=$(wait_pod "$label") || return 0
+  kubectl port-forward "pod/$pod" "$port:$port" >"$logfile" 2>&1 &
+}
+
+pf_pod app=spring-order-service     8081 /tmp/pf-spring-ord.log
+pf_pod app=spring-customer-portal   8082 /tmp/pf-spring-portal.log
+pf_pod app=spring-inventory-service 8083 /tmp/pf-spring-inv.log
 sleep 4
 
-for pair in "8080:Producer UI" "8081:Admin Dashboard" "8082:Customer Portal" "8083:Inventory API"; do
+for pair in "8081:Admin Dashboard" "8082:Customer Portal" "8083:Inventory API"; do
   port="${pair%%:*}"; name="${pair##*:}"
   curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/" 2>/dev/null | grep -q "200" \
-    && log_ok "$name -> http://localhost:$port" || log_warn "$name :$port not responding -- check /tmp/pf-spring-*.log"
+    && log_ok "$name -> http://localhost:$port" \
+    || log_warn "$name :$port not responding yet -- may still be starting, check /tmp/pf-spring-*.log"
 done
 
 # ── Step 7: Seed ──────────────────────────────────────────────────────────────
@@ -155,6 +173,10 @@ echo -e "  |  ${BOLD}Customer Order Portal${NC}   ${GREEN}http://localhost:8082$
 echo -e "  |  ${BOLD}Admin Dashboard${NC}         ${GREEN}http://localhost:8081${NC}             |"
 echo -e "  |  ${BOLD}Kafka UI${NC}                ${GREEN}http://localhost:30080${NC}            |"
 echo -e "  +-------------------------------------------------------------+"
+echo ""
+echo -e "  ${BOLD}If any portal shows 'not responding', re-run port-forwards:${NC}"
+echo -e "    ${CYAN}POD=\$(kubectl get pod -l app=spring-order-service -o jsonpath='{.items[0].metadata.name}')${NC}"
+echo -e "    ${CYAN}kubectl port-forward pod/\$POD 8081:8081 &${NC}"
 echo ""
 echo -e "  ${BOLD}${CYAN}Test Customer${NC}"
 echo -e "  +-------------------------------------------------------------+"
