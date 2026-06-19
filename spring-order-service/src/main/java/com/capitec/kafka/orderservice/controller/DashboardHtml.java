@@ -16,6 +16,9 @@ public class DashboardHtml {
     .tab{padding:.6rem 1.4rem;font-size:.85rem;font-weight:600;cursor:pointer;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
     .tab.active{color:#818cf8;border-bottom-color:#6366f1}
     .tab-panel{display:none}.tab-panel.active{display:block}
+    .stock-ok{color:#22c55e;font-weight:700}
+    .stock-low{color:#f59e0b;font-weight:700}
+    .stock-out{color:#ef4444;font-weight:700}
     .stats{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem}
     .stat{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1rem 1.5rem;min-width:120px}
     .stat-label{font-size:.68rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem}
@@ -52,6 +55,7 @@ public class DashboardHtml {
 <div class="tabs">
   <div class="tab active" onclick="switchTab('orders')">Orders</div>
   <div class="tab"        onclick="switchTab('customers')">Customers</div>
+  <div class="tab"        onclick="switchTab('inventory')">Inventory</div>
 </div>
 
 <div class="tab-panel active" id="tab-orders">
@@ -86,16 +90,57 @@ public class DashboardHtml {
   <div class="pagination" id="cust-pagination"></div>
 </div>
 
+<div class="tab-panel" id="tab-inventory">
+  <div class="toolbar">
+    <input type="text" id="inv-search" placeholder="Search SKU, name, product…" oninput="debounce(()=>loadInventory())"/>
+    <select id="inv-cat" onchange="loadInventory()">
+      <option value="ALL">All categories</option>
+      <option>Tyres</option><option>Brakes</option><option>Batteries</option>
+      <option>Filters</option><option>Wipers</option><option>Shocks</option>
+      <option>Lighting</option><option>Oils</option>
+    </select>
+    <button class="btn" onclick="loadInventory()">Refresh</button>
+  </div>
+  <div id="inv-stats" style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap"></div>
+  <table>
+    <thead><tr><th>SKU</th><th>Product ID</th><th>Name</th><th>Category</th><th>Stock</th><th>Reorder Level</th><th>Unit Price</th><th>Updated</th></tr></thead>
+    <tbody id="inv-tbody"></tbody>
+  </table>
+  <div class="empty" id="inv-empty" style="display:none">No inventory found.</div>
+</div>
+
 <script>
   let orderPage=1,custPage=1;const pageSize=20;
   let autoRefresh=true,autoTimer=null,debTimer=null,activeTab='orders';
 
   function switchTab(n){
     activeTab=n;
-    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['orders','customers'][i]===n));
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['orders','customers','inventory'][i]===n));
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
     document.getElementById('tab-'+n).classList.add('active');
-    n==='orders'?loadOrders():loadCustomers();
+    if(n==='orders')loadOrders();else if(n==='inventory')loadInventory();else loadCustomers();
+  }
+
+  async function loadInventory(){
+    const s=document.getElementById('inv-search').value.trim();
+    const cat=document.getElementById('inv-cat').value;
+    const p=new URLSearchParams({size:200});
+    if(s)p.set('search',s);if(cat!=='ALL')p.set('category',cat);
+    const data=await fetch('/api/inventory?'+p).then(r=>r.json()).catch(()=>({total:0,lowStock:0,items:[]}));
+    document.getElementById('inv-stats').innerHTML=[
+      ['Total SKUs',data.total||0],['Low Stock',data.lowStock||0]
+    ].map(([l,v])=>`<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join('');
+    const items=data.items||[];
+    const empty=document.getElementById('inv-empty');
+    if(!items.length){document.getElementById('inv-tbody').innerHTML='';empty.style.display='';return;}
+    empty.style.display='none';
+    document.getElementById('inv-tbody').innerHTML=items.map(i=>{
+      const cls=i.quantity===0?'stock-out':i.quantity<=i.reorderLevel?'stock-low':'stock-ok';
+      return`<tr><td class="mono">${i.sku}</td><td style="font-size:.75rem;color:#64748b">${i.productID}</td>
+      <td>${i.name}</td><td>${i.category}</td>
+      <td class="${cls}">${i.quantity}</td><td>${i.reorderLevel}</td>
+      <td>R ${Number(i.unitPrice).toLocaleString('en-ZA',{minimumFractionDigits:2})}</td>
+      <td>${i.updatedAt}</td></tr>`;}).join('');
   }
 
   async function loadOrders(){
@@ -147,7 +192,7 @@ public class DashboardHtml {
       <button onclick="(${fn.toString()})(${page+1})" ${page>=pages?'disabled':''}>Next →</button>`;
   }
   function debounce(fn){clearTimeout(debTimer);debTimer=setTimeout(fn,300);}
-  function scheduleAuto(){clearTimeout(autoTimer);if(!autoRefresh)return;autoTimer=setTimeout(()=>{activeTab==='orders'?loadOrders():loadCustomers();scheduleAuto();},3000);}
+  function scheduleAuto(){clearTimeout(autoTimer);if(!autoRefresh)return;autoTimer=setTimeout(()=>{if(activeTab==='orders')loadOrders();else if(activeTab==='inventory')loadInventory();else loadCustomers();scheduleAuto();},3000);}
   document.getElementById('auto-label').addEventListener('click',()=>{autoRefresh=!autoRefresh;document.getElementById('auto-label').textContent='auto-refresh: '+(autoRefresh?'ON':'OFF');scheduleAuto();});
   loadOrders();scheduleAuto();
 </script>

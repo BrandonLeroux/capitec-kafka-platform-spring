@@ -5,8 +5,10 @@ import com.capitec.kafka.orderservice.model.Order;
 import com.capitec.kafka.orderservice.repository.CustomerRepository;
 import com.capitec.kafka.orderservice.repository.OrderRepository;
 import com.capitec.kafka.orderservice.service.JsonParser;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +20,10 @@ public class OrderController {
     private final OrderRepository    orderRepo;
     private final CustomerRepository customerRepo;
     private final JsonParser         parser;
+    private final RestTemplate       restTemplate = new RestTemplate();
+
+    @Value("${app.inventory-service.url:http://spring-inventory-service:8083}")
+    private String inventoryServiceUrl;
 
     public OrderController(OrderRepository orderRepo, CustomerRepository customerRepo, JsonParser parser) {
         this.orderRepo    = orderRepo;
@@ -105,6 +111,31 @@ public class OrderController {
         if (c.customerID == null) return ResponseEntity.badRequest().body(Map.of("error", "customerID required"));
         customerRepo.upsert(c);
         return ResponseEntity.ok(Map.of("customerID", c.customerID));
+    }
+
+    // ── Inventory proxy ───────────────────────────────────────────────────────
+    @GetMapping("/api/inventory")
+    public ResponseEntity<?> inventoryProxy(@RequestParam Map<String, String> params) {
+        try {
+            String query = params.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .reduce((a, b) -> a + "&" + b).orElse("");
+            String url = inventoryServiceUrl + "/api/inventory" + (query.isEmpty() ? "" : "?" + query);
+            var result = restTemplate.getForObject(url, Map.class);
+            return ResponseEntity.ok(result != null ? result : Map.of("total", 0, "items", new Object[0]));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("total", 0, "lowStock", 0, "items", new Object[0]));
+        }
+    }
+
+    @GetMapping("/api/inventory/stock")
+    public ResponseEntity<?> inventoryStockProxy() {
+        try {
+            var result = restTemplate.getForObject(inventoryServiceUrl + "/api/inventory/stock", Map.class);
+            return ResponseEntity.ok(result != null ? result : Map.of());
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of());
+        }
     }
 
     // ── Dashboard UI ──────────────────────────────────────────────────────────
