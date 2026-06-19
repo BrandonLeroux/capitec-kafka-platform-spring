@@ -171,5 +171,5 @@ echo ""
 
 if command -v open &>/dev/null; then open http://localhost:8082; open http://localhost:8081; log_ok "Portals opened in browser"
 elif grep -qi microsoft /proc/version 2>/dev/null; then explorer.exe http://localhost:8082 2>/dev/null||true; explorer.exe http://localhost:8081 2>/dev/null||true; log_ok "Portals opened in browser"
-elif command -v xdg-open &>/dev/null; then xdg-open http://localhost:8082 &>/dev/null &; xdg-open http://localhost:8081 &>/dev/null &; log_ok "Portals opened in browser"
+elif command -v xdg-open &>/dev/null; then xdg-open http://localhost:8082 &>/dev/null & xdg-open http://localhost:8081 &>/dev/null & log_ok "Portals opened in browser"
 else log_warn "Open the URLs above manually"; fi
