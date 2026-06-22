@@ -55,7 +55,7 @@ public class DashboardHtml {
 </head>
 <body>
 <h1>Admin Dashboard <span class="sb-badge">Spring Boot</span> <span class="auto-badge" id="auto-label">auto-refresh: ON</span>
-  <a href="http://localhost:30080" target="_blank" style="margin-left:1rem;font-size:.75rem;font-weight:600;color:#38bdf8;text-decoration:none;border:1px solid #334155;border-radius:6px;padding:.25rem .7rem;background:#0c1a2e">Kafka UI ↗</a>
+  <a href="http://localhost:30080" target="_blank" rel="noopener" style="margin-left:1rem;font-size:.75rem;font-weight:600;color:#38bdf8;text-decoration:none;border:1px solid #334155;border-radius:6px;padding:.25rem .7rem;background:#0c1a2e">Kafka UI ↗</a>
 </h1>
 <div class="tabs">
   <div class="tab active" onclick="switchTab('orders')">Orders</div>
