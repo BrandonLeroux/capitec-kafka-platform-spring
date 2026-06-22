@@ -202,6 +202,41 @@ public class PortalController {
             "{\"orderID\":\"%s\",\"customerID\":\"%s\",\"reason\":\"%s\",\"cancelledAt\":\"%s\"}",
             esc(orderID), esc(s.customerID), esc(reason), LocalDateTime.now());
         kafka.send(cancelledTopic, orderID, payload);
+
+        // Restore inventory — but ONLY if stock was already deducted.
+        // Stock is deducted at checkout (CONFIRMED). If the order was cancelled
+        // due to payment failure it never reached CONFIRMED, so inventory is untouched.
+        // Statuses where inventory IS already reserved: CONFIRMED, PAYMENT-INIT, PAYMENT-PROCESSED, PACKED
+        try {
+            var ordersResp = restTemplate.getForObject(
+                orderServiceUrl + "/api/orders?search=" + orderID + "&size=1", Map.class);
+            if (ordersResp != null) {
+                var orders = (java.util.List<?>) ordersResp.get("orders");
+                if (orders != null && !orders.isEmpty()) {
+                    var order = (Map<?, ?>) orders.get(0);
+                    String currentStatus = (String) order.get("status");
+                    String product = (String) order.get("product");
+                    int qty = order.get("qty") instanceof Number n ? n.intValue() : 1;
+
+                    boolean inventoryAlreadyDeducted = currentStatus != null &&
+                        java.util.Set.of("CONFIRMED","PAYMENT-INIT","PAYMENT-PROCESSED","PACKED")
+                            .contains(currentStatus);
+
+                    if (inventoryAlreadyDeducted && product != null) {
+                        String invPayload = String.format(
+                            "{\"productID\":\"%s\",\"quantity\":%d,\"action\":\"ADJUST\",\"orderID\":\"%s\",\"reason\":\"cancellation\"}",
+                            esc(product), qty, esc(orderID));
+                        kafka.send(inventoryTopic, product, invPayload);
+                        log.info("Inventory restored product={} qty=+{} for cancelled orderID={}", product, qty, orderID);
+                    } else {
+                        log.info("Inventory NOT restored for orderID={} status={} — stock was never deducted", orderID, currentStatus);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not restore inventory for orderID={}: {}", orderID, e.getMessage());
+        }
+
         log.info("Cancellation published orderID={}", orderID);
         return ResponseEntity.ok(Map.of("ok", true, "orderID", orderID));
     }

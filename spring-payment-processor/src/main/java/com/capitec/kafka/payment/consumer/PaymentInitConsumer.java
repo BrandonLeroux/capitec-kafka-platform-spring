@@ -29,8 +29,12 @@ public class PaymentInitConsumer {
 
             if (orderID == null) { log.warn("Missing orderID key={}", record.key()); return; }
 
-            log.info("Payment triggered orderID={}", orderID);
-            fulfilment.process(orderID, customerID != null ? customerID : "", product != null ? product : "", amount);
+            int qty = extractInt(json, "qty");
+            if (qty <= 0) qty = 1;
+
+            log.info("Payment triggered orderID={} product={} qty={}", orderID, product, qty);
+            fulfilment.process(orderID, customerID != null ? customerID : "",
+                               product != null ? product : "", amount, qty);
         } finally {
             ack.acknowledge();
         }
@@ -43,6 +47,18 @@ public class PaymentInitConsumer {
         int start = json.indexOf('"', colon + 1); if (start < 0) return null;
         int end = json.indexOf('"', start + 1); if (end < 0) return null;
         return json.substring(start + 1, end);
+    }
+
+    private int extractInt(String json, String field) {
+        String key = "\"" + field + "\"";
+        int idx = json.indexOf(key); if (idx < 0) return 0;
+        int colon = json.indexOf(':', idx + key.length()); if (colon < 0) return 0;
+        int start = colon + 1;
+        while (start < json.length() && json.charAt(start) == ' ') start++;
+        if (json.charAt(start) == '"') start++;
+        int end = start;
+        while (end < json.length() && ",}\"".indexOf(json.charAt(end)) < 0) end++;
+        try { return Integer.parseInt(json.substring(start, end).trim()); } catch (Exception e) { return 0; }
     }
 
     private double extractDouble(String json, String field) {
