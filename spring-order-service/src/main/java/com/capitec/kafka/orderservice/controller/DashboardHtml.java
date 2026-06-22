@@ -43,6 +43,7 @@ public class DashboardHtml {
     .badge-OUT-FOR-DELIVERY{background:#431407;color:#f97316}
     .badge-DELIVERED{background:#1e293b;color:#94a3b8}
     .badge-CANCELLED{background:#2d0707;color:#ef4444}
+    .badge-PAYMENT-FAILED{background:#450a0a;color:#fca5a5}
     .badge-UNKNOWN{background:#1e293b;color:#475569}
     .pagination{display:flex;gap:.5rem;align-items:center;margin-top:1rem;font-size:.82rem;color:#64748b}
     .pagination button{background:#1e293b;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:.3rem .65rem;cursor:pointer;font-size:.8rem}

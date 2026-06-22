@@ -87,20 +87,20 @@ public class FulfilmentService {
      */
     private void publishPaymentFailed(String orderID, String customerID, String product,
                                       double amount, int qty) {
-        log.warn("Payment FAILED for orderID={} — cancelling order and restoring inventory", orderID);
+        log.warn("Payment FAILED for orderID={} — setting PAYMENT-FAILED status and restoring inventory", orderID);
 
-        // 1. Update order status to CANCELLED via order-created topic
-        String cancelPayload = String.format(
+        // 1. Publish PAYMENT-FAILED status — distinct from CANCELLED (customer cancel)
+        String failedPayload = String.format(
             "{\"orderID\":\"%s\",\"customerID\":\"%s\",\"product\":\"%s\",\"amount\":%.2f," +
-            "\"status\":\"CANCELLED\",\"updatedAt\":\"%s\"}",
+            "\"status\":\"PAYMENT-FAILED\",\"updatedAt\":\"%s\"}",
             orderID, customerID, product, amount, LocalDateTime.now());
-        kafka.send(orderTopic, orderID, cancelPayload);
+        kafka.send(orderTopic, orderID, failedPayload);
 
-        // 2. Publish to order-cancelled topic with reason = payment failure
-        String cancelledPayload = String.format(
-            "{\"orderID\":\"%s\",\"customerID\":\"%s\",\"reason\":\"Payment failed\",\"cancelledAt\":\"%s\"}",
+        // 2. Also publish to payment-failed topic for audit / downstream consumers
+        String auditPayload = String.format(
+            "{\"orderID\":\"%s\",\"customerID\":\"%s\",\"reason\":\"Payment failed\",\"failedAt\":\"%s\"}",
             orderID, customerID, LocalDateTime.now());
-        kafka.send(paymentFailedTopic, orderID, cancelledPayload);
+        kafka.send(paymentFailedTopic, orderID, auditPayload);
 
         // 3. Restore inventory — inventory was deducted when order was CONFIRMED.
         //    Payment failure = order never fulfilled, so stock must be returned.
@@ -126,7 +126,8 @@ public class FulfilmentService {
             var orders = (java.util.List<?>) response.get("orders");
             if (orders == null || orders.isEmpty()) return false;
             var order = (Map<?, ?>) orders.get(0);
-            return "CANCELLED".equals(order.get("status"));
+            String st = (String) order.get("status");
+            return "CANCELLED".equals(st) || "PAYMENT-FAILED".equals(st);
         } catch (Exception e) {
             log.warn("Could not check cancellation for orderID={} — continuing: {}", orderID, e.getMessage());
             return false;

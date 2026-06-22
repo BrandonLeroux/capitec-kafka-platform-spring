@@ -71,10 +71,7 @@ public class OrderRepository {
             String like = "%" + search + "%";
             args.add(like); args.add(like); args.add(like);
         }
-        if (status != null && !status.isBlank() && !"ALL".equals(status)) {
-            if ("PAYMENT-FAILED".equals(status)) { sql.append(" AND status='CANCELLED' AND cancellation_reason='Payment failed'"); }
-            else { sql.append(" AND status=?"); args.add(status); }
-        }
+        if (status != null && !status.isBlank() && !"ALL".equals(status)) { sql.append(" AND status=?"); args.add(status); }
         if (customerID != null && !customerID.isBlank()) { sql.append(" AND customer_id=?"); args.add(customerID); }
         sql.append(" ORDER BY updated_at DESC LIMIT ? OFFSET ?");
         args.add(limit); args.add(offset);
@@ -89,10 +86,7 @@ public class OrderRepository {
             String like = "%" + search + "%";
             args.add(like); args.add(like); args.add(like);
         }
-        if (status != null && !status.isBlank() && !"ALL".equals(status)) {
-            if ("PAYMENT-FAILED".equals(status)) { sql.append(" AND status='CANCELLED' AND cancellation_reason='Payment failed'"); }
-            else { sql.append(" AND status=?"); args.add(status); }
-        }
+        if (status != null && !status.isBlank() && !"ALL".equals(status)) { sql.append(" AND status=?"); args.add(status); }
         if (customerID != null && !customerID.isBlank()) { sql.append(" AND customer_id=?"); args.add(customerID); }
         return jdbc.queryForObject(sql.toString(), Integer.class, args.toArray());
     }
@@ -102,9 +96,7 @@ public class OrderRepository {
     }
 
     public long countPaymentFailed() {
-        return jdbc.queryForObject(
-            "SELECT COUNT(*) FROM orders WHERE status='CANCELLED' AND cancellation_reason='Payment failed'",
-            Long.class);
+        return jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE status='PAYMENT-FAILED'", Long.class);
     }
 
     private static final RowMapper<Order> ROW_MAPPER = (rs, i) -> {

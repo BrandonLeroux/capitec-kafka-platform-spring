@@ -91,6 +91,7 @@ public class PortalHtml {
     .badge-OUT-FOR-DELIVERY{background:#431407;color:var(--orange)}
     .badge-DELIVERED{background:#1e293b;color:var(--text2)}
     .badge-CANCELLED{background:#2d0707;color:var(--red)}
+    .badge-PAYMENT-FAILED{background:#450a0a;color:#fca5a5}
     .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--green);color:#fff;padding:.6rem 1.1rem;border-radius:8px;font-size:.83rem;font-weight:600;opacity:0;pointer-events:none;transition:opacity .3s;z-index:200}
     .toast.show{opacity:1}.toast.error{background:var(--red)}
     .page-header{margin-bottom:2rem}.page-header h2{font-size:1.3rem;font-weight:700}
