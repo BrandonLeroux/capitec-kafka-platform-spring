@@ -190,7 +190,17 @@ echo -e "    ${CYAN}bash runbook.sh --skip-build${NC}   # reuse existing images"
 echo -e "    ${CYAN}bash runbook.sh --skip-seed${NC}    # skip seeding"
 echo ""
 
-if command -v open &>/dev/null; then open http://localhost:8082; open http://localhost:8081; log_ok "Portals opened in browser"
-elif grep -qi microsoft /proc/version 2>/dev/null; then explorer.exe http://localhost:8082 2>/dev/null||true; explorer.exe http://localhost:8081 2>/dev/null||true; log_ok "Portals opened in browser"
-elif command -v xdg-open &>/dev/null; then xdg-open http://localhost:8082 &>/dev/null & xdg-open http://localhost:8081 &>/dev/null & log_ok "Portals opened in browser"
+if command -v open &>/dev/null; then
+  open http://localhost:8082; open http://localhost:8081; open http://localhost:30080
+  log_ok "Portals and Kafka UI opened in browser"
+elif grep -qi microsoft /proc/version 2>/dev/null; then
+  explorer.exe http://localhost:8082 2>/dev/null||true
+  explorer.exe http://localhost:8081 2>/dev/null||true
+  explorer.exe http://localhost:30080 2>/dev/null||true
+  log_ok "Portals and Kafka UI opened in browser"
+elif command -v xdg-open &>/dev/null; then
+  xdg-open http://localhost:8082 &>/dev/null &
+  xdg-open http://localhost:8081 &>/dev/null &
+  xdg-open http://localhost:30080 &>/dev/null &
+  log_ok "Portals and Kafka UI opened in browser"
 else log_warn "Open the URLs above manually"; fi
