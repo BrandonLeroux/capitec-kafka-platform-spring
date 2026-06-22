@@ -166,7 +166,7 @@ public class DashboardHtml {
       ['Out for Del.',stats['OUT-FOR-DELIVERY']||0,'OUT-FOR-DELIVERY'],
       ['Delivered',stats['DELIVERED']||0,'DELIVERED'],
       ['Cancelled',stats['CANCELLED']||0,'CANCELLED'],
-      ['Pmt Failed',stats['PAYMENT-FAILED']||0,'PAYMENT-FAILED'],
+      ['Payment Failed',stats['PAYMENT-FAILED']||0,'PAYMENT-FAILED'],
     ];
     document.getElementById('order-stats').innerHTML=tiles.map(([l,v,filterVal])=>
       `<div class="stat${activeSt===filterVal?' active':''}" onclick="filterByStatus('${filterVal}')">
