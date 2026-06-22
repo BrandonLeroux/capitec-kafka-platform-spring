@@ -20,7 +20,9 @@ public class DashboardHtml {
     .stock-low{color:#f59e0b;font-weight:700}
     .stock-out{color:#ef4444;font-weight:700}
     .stats{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem}
-    .stat{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1rem 1.5rem;min-width:120px}
+    .stat{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1rem 1.5rem;min-width:120px;cursor:pointer;transition:border-color .15s,background .15s}
+    .stat:hover{border-color:#6366f1;background:#262f42}
+    .stat.active{border-color:#6366f1;background:#1e1b4b}
     .stat-label{font-size:.68rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem}
     .stat-value{font-size:1.5rem;font-weight:700}
     .toolbar{display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
@@ -65,7 +67,8 @@ public class DashboardHtml {
     <select id="status-filter" onchange="orderPage=1;loadOrders()">
       <option value="ALL">All statuses</option>
       <option>CONFIRMED</option><option>PAYMENT-INIT</option><option>PAYMENT-PROCESSED</option>
-      <option>PACKED</option><option>OUT-FOR-DELIVERY</option><option>DELIVERED</option><option>CANCELLED</option>
+      <option>PACKED</option><option>OUT-FOR-DELIVERY</option><option>DELIVERED</option>
+      <option>CANCELLED</option><option value="PAYMENT-FAILED">PAYMENT FAILED</option>
     </select>
     <button class="btn" onclick="loadOrders()">Refresh</button>
   </div>
@@ -150,12 +153,25 @@ public class DashboardHtml {
     if(s)p.set('search',s);if(st!=='ALL')p.set('status',st);
     const data=await fetch('/api/orders?'+p).then(r=>r.json());
     const stats=data.stats||{};
-    const grandTotal=Object.values(stats).reduce((a,b)=>a+b,0);
-    document.getElementById('order-stats').innerHTML=[
-      ['Total',grandTotal],['Confirmed',stats['CONFIRMED']||0],['Payment Init',stats['PAYMENT-INIT']||0],
-      ['Processed',stats['PAYMENT-PROCESSED']||0],['Packed',stats['PACKED']||0],
-      ['Out for Del.',stats['OUT-FOR-DELIVERY']||0],['Delivered',stats['DELIVERED']||0],['Cancelled',stats['CANCELLED']||0]
-    ].map(([l,v])=>`<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join('');
+    const grandTotal=Object.values(stats).filter((_,i)=>i>0).reduce((a,b)=>a+(typeof b==='number'?b:0),0) ||
+      Object.entries(stats).filter(([k])=>k!=='PAYMENT-FAILED').reduce((a,[,v])=>a+v,0);
+    const activeSt=document.getElementById('status-filter').value;
+    const tiles=[
+      ['Total',grandTotal,'ALL'],
+      ['Confirmed',stats['CONFIRMED']||0,'CONFIRMED'],
+      ['Payment Init',stats['PAYMENT-INIT']||0,'PAYMENT-INIT'],
+      ['Processed',stats['PAYMENT-PROCESSED']||0,'PAYMENT-PROCESSED'],
+      ['Packed',stats['PACKED']||0,'PACKED'],
+      ['Out for Del.',stats['OUT-FOR-DELIVERY']||0,'OUT-FOR-DELIVERY'],
+      ['Delivered',stats['DELIVERED']||0,'DELIVERED'],
+      ['Cancelled',stats['CANCELLED']||0,'CANCELLED'],
+      ['Pmt Failed',stats['PAYMENT-FAILED']||0,'PAYMENT-FAILED'],
+    ];
+    document.getElementById('order-stats').innerHTML=tiles.map(([l,v,filterVal])=>
+      `<div class="stat${activeSt===filterVal?' active':''}" onclick="filterByStatus('${filterVal}')">
+        <div class="stat-label">${l}</div>
+        <div class="stat-value">${v}</div>
+      </div>`).join('');
     const empty=document.getElementById('order-empty');
     if(!data.orders.length){document.getElementById('order-tbody').innerHTML='';empty.style.display='';return;}
     empty.style.display='none';
@@ -166,7 +182,7 @@ public class DashboardHtml {
       <td><span class="badge badge-${o.status||'UNKNOWN'}">${o.status||'—'}</span></td>
       <td style="font-size:.78rem;color:#94a3b8">${o.cancellationReason||'—'}</td>
       <td>${o.receivedAt}</td><td>${o.updatedAt}</td></tr>`).join('');
-    renderPag('order',total,orderPage,p=>{orderPage=p;loadOrders()});
+    renderPag('order',data.total,orderPage,p=>{orderPage=p;loadOrders()});
   }
 
   async function loadCustomers(){
@@ -192,6 +208,11 @@ public class DashboardHtml {
       <span>Page ${page} of ${pages} (${total})</span>
       <button onclick="(${fn.toString()})(${page+1})" ${page>=pages?'disabled':''}>Next →</button>`;
   }
+  function filterByStatus(val){
+    document.getElementById('status-filter').value=val;
+    orderPage=1;loadOrders();
+  }
+
   function debounce(fn){clearTimeout(debTimer);debTimer=setTimeout(fn,300);}
   function scheduleAuto(){clearTimeout(autoTimer);if(!autoRefresh)return;autoTimer=setTimeout(()=>{if(activeTab==='orders')loadOrders();else if(activeTab==='inventory')loadInventory();else loadCustomers();scheduleAuto();},3000);}
   document.getElementById('auto-label').addEventListener('click',()=>{autoRefresh=!autoRefresh;document.getElementById('auto-label').textContent='auto-refresh: '+(autoRefresh?'ON':'OFF');scheduleAuto();});

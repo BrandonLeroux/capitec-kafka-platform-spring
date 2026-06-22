@@ -47,6 +47,7 @@ public class OrderController {
         Map<String, Long> stats = new HashMap<>();
         for (String s : new String[]{"CONFIRMED","PAYMENT-INIT","PAYMENT-PROCESSED","PACKED","OUT-FOR-DELIVERY","DELIVERED","CANCELLED"})
             stats.put(s, orderRepo.countByStatus(s));
+        stats.put("PAYMENT-FAILED", orderRepo.countPaymentFailed());
 
         return Map.of("total", total, "page", page, "pageSize", size, "stats", stats, "orders", orders);
     }
