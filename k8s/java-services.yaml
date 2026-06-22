@@ -1,0 +1,179 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Java Order Management Microservices — consolidated deployment manifest
+#
+# Pipeline:
+#   order-producer  → ORDER_TOPIC (order.placed)
+#   payment-service → consumes ORDER_TOPIC, publishes PAYMENT_SUCCESS_TOPIC
+#                     (payment.succeeded) or PAYMENT_FAILED_TOPIC (payment.failed)
+#   inventory-service → consumes PAYMENT_SUCCESS_TOPIC, logs inventory update
+#
+# Environment variables:
+#   KAFKA_BOOTSTRAP_SERVERS  — Kafka brokers (use kafka-service:9092 in-cluster,
+#                               localhost:30092 for local NodePort access)
+#   ORDER_TOPIC              — default: order-created
+#   PAYMENT_SUCCESS_TOPIC    — default: payment-init  (maps to payment.succeeded)
+#   PAYMENT_FAILED_TOPIC     — default: order-cancelled (maps to payment.failed)
+#
+# Usage:
+#   kubectl apply -f k8s/java-services.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── order-producer (spring-customer-portal) ───────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-producer
+  labels:
+    app: order-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-producer
+  template:
+    metadata:
+      labels:
+        app: order-producer
+    spec:
+      containers:
+        - name: order-producer
+          image: spring-customer-portal:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8082
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service:9092"
+            - name: ORDER_TOPIC
+              value: "order-created"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 10
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-producer
+spec:
+  selector:
+    app: order-producer
+  ports:
+    - port: 8082
+      targetPort: 8082
+
+---
+# ── payment-service (spring-payment-processor) ────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  labels:
+    app: payment-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+        - name: payment-service
+          image: spring-payment-processor:latest
+          imagePullPolicy: Never
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service:9092"
+            - name: ORDER_TOPIC
+              value: "payment-init"
+            - name: PAYMENT_SUCCESS_TOPIC
+              value: "order-created"
+            - name: PAYMENT_FAILED_TOPIC
+              value: "order-cancelled"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+
+---
+# ── inventory-service ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-updater
+  labels:
+    app: inventory-updater
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-updater
+  template:
+    metadata:
+      labels:
+        app: inventory-updater
+    spec:
+      containers:
+        - name: inventory-updater
+          image: spring-inventory-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8083
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service:9092"
+            - name: PAYMENT_SUCCESS_TOPIC
+              value: "inventory"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 10
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-updater
+spec:
+  selector:
+    app: inventory-updater
+  ports:
+    - port: 8083
+      targetPort: 8083
