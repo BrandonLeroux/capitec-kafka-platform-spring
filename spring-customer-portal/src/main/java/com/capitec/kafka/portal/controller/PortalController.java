@@ -102,13 +102,25 @@ public class PortalController {
         if (password == null || password.isBlank())
             return ResponseEntity.badRequest().body(Map.of("error", "Password is required."));
 
-        // F1: Check for duplicate cell before consuming a sequence number
+        String email = body.getOrDefault("email", "");
+
+        // Check duplicate cell — cell is used as a login identifier so must be unique
         try {
             var existing = restTemplate.getForObject(
                 orderServiceUrl + "/api/customer/by-identifier?q=" + cell, Map.class);
             if (existing != null && (existing.containsKey("customerId") || existing.containsKey("customerID")))
                 return ResponseEntity.badRequest().body(Map.of("error", "A customer with this cell number already exists."));
-        } catch (Exception ignored) { /* 404 means not found — proceed */ }
+        } catch (Exception ignored) {}
+
+        // Check duplicate email — email is also a login identifier so must be unique
+        if (!email.isBlank()) {
+            try {
+                var existingEmail = restTemplate.getForObject(
+                    orderServiceUrl + "/api/customer/by-identifier?q=" + email, Map.class);
+                if (existingEmail != null && (existingEmail.containsKey("customerId") || existingEmail.containsKey("customerID")))
+                    return ResponseEntity.badRequest().body(Map.of("error", "A customer with this email address already exists."));
+            } catch (Exception ignored) {}
+        }
 
         try {
             long custNum   = sequenceService.next();
@@ -118,7 +130,7 @@ public class PortalController {
                 "{\"customerID\":\"%s\",\"customerNumber\":%d,\"firstName\":\"%s\",\"lastName\":\"%s\"," +
                 "\"idNumber\":\"%s\",\"email\":\"%s\",\"cell\":\"%s\",\"passwordHash\":\"%s\"}",
                 custID, custNum, esc(firstName), esc(lastName),
-                esc(body.getOrDefault("idNumber", "")), esc(body.getOrDefault("email", "")),
+                esc(body.getOrDefault("idNumber", "")), esc(email),
                 esc(cell), hash);
             kafka.send(customerTopic, custID, payload);
             log.info("Registered customerID={} number={}", custID, custNum);
