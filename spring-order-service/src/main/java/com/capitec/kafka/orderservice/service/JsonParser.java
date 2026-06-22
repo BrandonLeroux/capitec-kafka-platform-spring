@@ -66,6 +66,8 @@ public class JsonParser {
         o.customerID = getString(merged, "customerID");
         o.product    = getString(merged, "product");
         o.amount     = getDouble(merged, "amount");
+        o.qty        = (int) getLong(merged, "qty");
+        if (o.qty <= 0) o.qty = 1;
         o.status     = getString(merged, "status");
         if (o.customerID == null) o.customerID = "UNKNOWN";
         if (o.product    == null) o.product    = "UNKNOWN";

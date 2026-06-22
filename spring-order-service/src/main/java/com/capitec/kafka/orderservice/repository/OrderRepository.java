@@ -25,24 +25,26 @@ public class OrderRepository {
                 customer_id         TEXT,
                 product             TEXT,
                 amount              REAL,
+                qty                 INTEGER DEFAULT 1,
                 status              TEXT,
                 cancellation_reason TEXT,
                 received_at         TEXT DEFAULT (datetime('now')),
                 updated_at          TEXT DEFAULT (datetime('now'))
             )""");
         try { jdbc.execute("ALTER TABLE orders ADD COLUMN cancellation_reason TEXT"); } catch (Exception ignored) {}
+        try { jdbc.execute("ALTER TABLE orders ADD COLUMN qty INTEGER DEFAULT 1"); }   catch (Exception ignored) {}
         jdbc.execute("PRAGMA journal_mode=WAL");
         jdbc.execute("PRAGMA busy_timeout=5000");
     }
 
     public synchronized void upsert(Order o) {
         jdbc.update("""
-            INSERT INTO orders (order_id, customer_id, product, amount, status, received_at, updated_at)
-            VALUES (?,?,?,?,?,datetime('now'),datetime('now'))
+            INSERT INTO orders (order_id, customer_id, product, amount, qty, status, received_at, updated_at)
+            VALUES (?,?,?,?,?,?,datetime('now'),datetime('now'))
             ON CONFLICT(order_id) DO UPDATE SET
                 status     = excluded.status,
                 updated_at = datetime('now')
-            """, o.orderID, o.customerID, o.product, o.amount, o.status);
+            """, o.orderID, o.customerID, o.product, o.amount, o.qty, o.status);
     }
 
     public synchronized void updateStatus(String orderID, String status) {
@@ -99,6 +101,7 @@ public class OrderRepository {
         o.customerID         = rs.getString("customer_id");
         o.product            = rs.getString("product");
         o.amount             = rs.getDouble("amount");
+        o.qty                = rs.getInt("qty");
         o.status             = rs.getString("status");
         o.cancellationReason = rs.getString("cancellation_reason");
         o.receivedAt         = rs.getString("received_at");
