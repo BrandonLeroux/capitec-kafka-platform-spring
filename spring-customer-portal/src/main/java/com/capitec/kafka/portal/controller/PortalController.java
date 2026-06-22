@@ -91,8 +91,24 @@ public class PortalController {
         String lastName  = body.get("lastName");
         String cell      = body.get("cell");
         String password  = body.get("password");
-        if (firstName == null || cell == null || password == null)
-            return ResponseEntity.badRequest().body(Map.of("error", "All fields required"));
+
+        // F2: Server-side blank validation (client also validates but API must be safe)
+        if (firstName == null || firstName.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "First name is required."));
+        if (lastName == null || lastName.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Last name is required."));
+        if (cell == null || cell.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Cell number is required."));
+        if (password == null || password.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Password is required."));
+
+        // F1: Check for duplicate cell before consuming a sequence number
+        try {
+            var existing = restTemplate.getForObject(
+                orderServiceUrl + "/api/customer/by-identifier?q=" + cell, Map.class);
+            if (existing != null && (existing.containsKey("customerId") || existing.containsKey("customerID")))
+                return ResponseEntity.badRequest().body(Map.of("error", "A customer with this cell number already exists."));
+        } catch (Exception ignored) { /* 404 means not found — proceed */ }
 
         try {
             long custNum   = sequenceService.next();
@@ -101,7 +117,7 @@ public class PortalController {
             String payload = String.format(
                 "{\"customerID\":\"%s\",\"customerNumber\":%d,\"firstName\":\"%s\",\"lastName\":\"%s\"," +
                 "\"idNumber\":\"%s\",\"email\":\"%s\",\"cell\":\"%s\",\"passwordHash\":\"%s\"}",
-                custID, custNum, esc(firstName), esc(lastName != null ? lastName : ""),
+                custID, custNum, esc(firstName), esc(lastName),
                 esc(body.getOrDefault("idNumber", "")), esc(body.getOrDefault("email", "")),
                 esc(cell), hash);
             kafka.send(customerTopic, custID, payload);
